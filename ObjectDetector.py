@@ -9,20 +9,20 @@ class Detector:
 
     def __init__(self, filename):
         # set model and test set
-        self.model = 'faster_rcnn_R_50_FPN_3x.yaml'
+        self.model = './model_config/faster_rcnn_R_50_FPN_3x.yaml'
         self.filename = filename
 
         # obtain detectron2's default config
         self.cfg = get_cfg()
 
         # load values from a file
-        self.cfg.merge_from_file("config.yml")
+        self.cfg.merge_from_file("./model_config/config.yml")
 
         # set device to cpu
         self.cfg.MODEL.DEVICE = "cpu"
 
         # get weights
-        self.cfg.MODEL.WEIGHTS = "model_final.pth"
+        self.cfg.MODEL.WEIGHTS = "./model_config/model_final.pth"
 
         # set the testing threshold for this model
         self.cfg.MODEL.ROI_HEADS.SCORE_THRESH_TEST = 0.50

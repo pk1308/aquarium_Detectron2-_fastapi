@@ -1,13 +1,18 @@
 from PIL import Image
-from fastapi import FastAPI, File
+from fastapi import FastAPI, File 
 import os
 from starlette.responses import Response
 import io
+from fastapi.responses import JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
 from ObjectDetector import Detector
-from utils.utils import decodeImage
+from utils.utils import decodeImage , get_model_folder_gdrive
+
+get_model_folder_gdrive()
 
 detector = Detector(filename="file.jpg")
+
+MESSAGE = "fish, jellyfish, penguins, sharks, puffins, stingrays, and starfish"
 
 
 class ClientApp:
@@ -31,7 +36,8 @@ def run_inference(img_path="file.jpg"):
 
 app = FastAPI(
     title="Custom Detectron2 API",
-    description="""Obtain object value out of image
+    description=""" objects trained = fish, jellyfish, penguins, sharks, puffins, stingrays, and starfish
+                Obtain object value out of image
                     and return image and json result""",
     version="0.0.1",
 )
@@ -45,6 +51,10 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+@app.get("/")
+async def index():
+    return {"Classes trained": "fish, jellyfish, penguins, sharks, puffins, stingrays, and starfish"}
 
 
 @app.get("/notify/v1/health")

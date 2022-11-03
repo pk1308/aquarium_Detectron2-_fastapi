@@ -131,3 +131,5 @@ dmypy.json
 .ipynb_checkpoints/
 test.ipynb
 model_final.pth
+model_final.zip
+model_config/
