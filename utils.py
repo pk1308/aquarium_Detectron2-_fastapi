@@ -16,3 +16,5 @@ def get_model_folder_gdrive( folder_path : str  = "model_config"  , folder_id : 
         gdown.download_folder(id= folder_id, output= folder_path , quiet=True )
     else:
         print("Folder {} already exists".format(folder_path))
+if __name__ == "__main__":
+    get_model_folder_gdrive()

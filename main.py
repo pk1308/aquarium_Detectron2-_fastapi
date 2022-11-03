@@ -6,7 +6,7 @@ import io
 from fastapi.responses import JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
 from ObjectDetector import Detector
-from utils.utils import decodeImage , get_model_folder_gdrive
+from utils import decodeImage , get_model_folder_gdrive
 
 get_model_folder_gdrive()
 
