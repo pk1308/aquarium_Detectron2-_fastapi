@@ -1,59 +1,92 @@
-# Your workflow name.
-name: Deploy to heroku.
+name: FastAPI CI/CD
 
-# Run workflow on every push to main branch.
 on:
+  # Trigger the workflow on push
   push:
-    branches: [main]
+    branches: 
+      # Push events on main branch
+      - main 
 
-# Your workflows jobs.
+# The Job defines a series of steps that execute on the same runner.
 jobs:
-  build:
+
+  CI:
+    # Define the runner used in the workflow
     runs-on: ubuntu-latest
-    steps:
-      # Check-out your repository.
-      - name: Checkout
-        uses: actions/checkout@v2
-
-
-### ⬇ IMPORTANT PART ⬇ ###
-
-      - name: Build, Push and Release a Docker container to Heroku. # Your custom step name
-        uses: gonuit/heroku-docker-deploy@v1.3.3 # GitHub action name (leave it as it is).
+    steps:   
+      # Check out repo so our workflow can access it
+      - uses: actions/checkout@v2
+      
+      # Step-1 Setup Python
+      - name: Set up Python
+        # This action sets up a Python environment for use in actions
+        uses: actions/setup-python@v2
         with:
-          # Below you must provide variables for your Heroku app.
+          python-version: 3.8
+          # optional: architecture: x64 x64 or x86. Defaults to x64 if not specified
 
-          # The email address associated with your Heroku account.
-          # If you don't want to use repository secrets (which is recommended) you can do:
-          # email: my.email@example.com
-          email: ${{ secrets.HEROKU_EMAIL }}
-          
-          # Heroku API key associated with provided user's email.
-          # Api Key is available under your Heroku account settings.
-          heroku_api_key: ${{ secrets.HEROKU_API_KEY }}
-          
-          # Name of the heroku application to which the build is to be sent.
-          heroku_app_name: ${{ secrets.HEROKU_APP_NAME }}
+      # Step-2 Install Python Virtual ENV
+      - name: Install Python Virtual ENV
+        run: pip3 install virtualenv
 
-          # (Optional, default: "./")
-          # Dockerfile directory.
-          # For example, if you have a Dockerfile in the root of your project, leave it as follows:
-          dockerfile_directory: ./
+      # Step-3 Setup Virtual ENV
+      # https://docs.github.com/en/actions/guides/caching-dependencies-to-speed-up-workflows
+      - name:  Virtual ENV
+        uses: actions/cache@v2
+        id: cache-venv # name for referring later
+        with:
+          path: venv # what we cache: the Virtual ENV
+          # The cache key depends on requirements.txt
+          key: ${{ runner.os }}-venv-${{ hashFiles('**/requirements*.txt') }}
+          restore-keys: |
+            ${{ runner.os }}-venv-
+      # Step-4 Build a Virtual ENV, but only if it doesn't already exist
+      - name: Activate Virtual ENV
+        run: python -m venv venv && source venv/bin/activate && pip3 install -r requirements.txt
+        if: steps.cache-venv.outputs.cache-hit != 'true'
 
-          # (Optional, default: "Dockerfile")
-          # Dockerfile name.
-          dockerfile_name: Dockerfile
+      - name: Run Tests   
+        # Note that you have to activate the virtualenv in every step
+        # because GitHub actions doesn't preserve the environment   
+        run: . venv/bin/activate 
+      - name: Create archive of dependencies
+        run: |
+          cd ./venv/lib/python3.8/site-packages
+          zip -r9 ../../../../api.zip .
+      - name: Add API files to Zip file
+        run: cd ./api && zip -g ../api.zip -r .
+      - name: Upload zip file artifact
+        uses: actions/upload-artifact@v2
+        with:
+          name: api
+          path: api.zip
 
-          # (Optional, default: "")
-          # Additional options of docker build command.
-          docker_options: "--no-cache"
-
-          # (Optional, default: "web")
-          # Select the process type for which you want the docker container to be uploaded.
-          # By default, this argument is set to "web".
-          # For more information look at https://devcenter.heroku.com/articles/process-model
-          process_type: web
-          
-   
-          
-### ⬆ IMPORTANT PART ⬆ ###
+  CD:
+    runs-on: ubuntu-latest
+    needs: [CI]
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    steps:
+      - name: Install AWS CLI
+        uses: unfor19/install-aws-cli-action@v1
+        with:
+          version: 1
+        env:
+          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_SECRET_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          AWS_DEFAULT_REGION: ${{ secrets.AWS_DEFAULT_REGION }}
+      - name: Download Lambda api.zip
+        uses: actions/download-artifact@v2
+        with:
+          name: api
+      - name: Upload to S3
+        run: aws s3 cp api.zip s3://fastapi123718237193712983/api.zip
+        env:
+          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_SECRET_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          AWS_DEFAULT_REGION: ${{ secrets.AWS_DEFAULT_REGION }}
+      - name: Deploy new Lambda
+        run: aws lambda update-function-code --function-name fastapi --s3-bucket fastapi123718237193712983 --s3-key api.zip
+        env:
+          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_SECRET_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          AWS_DEFAULT_REGION: ${{ secrets.AWS_DEFAULT_REGION }}

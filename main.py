@@ -8,7 +8,6 @@ from fastapi.middleware.cors import CORSMiddleware
 from ObjectDetector import Detector
 from utils import decodeImage , get_model_folder_gdrive
 
-get_model_folder_gdrive()
 
 detector = Detector(filename="file.jpg")
 

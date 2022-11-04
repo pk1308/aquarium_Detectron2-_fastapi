@@ -133,3 +133,4 @@ test.ipynb
 model_final.pth
 model_final.zip
 model_config/
+docker_fastapi.pem
